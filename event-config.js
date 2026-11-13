@@ -1,0 +1,1 @@
+window.REEF_WORKER_URL=window.REEF_WORKER_URL||'';

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Reef Float Karaoke · Join</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="join.webmanifest">
+<meta name="theme-color" content="#061821">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="event.css">
+<style>
+.hero{padding-block:22px 10px;display:flex;align-items:center;gap:14px}
+.hero img{width:56px;height:56px;border-radius:22%;box-shadow:0 4px 18px rgba(255,95,182,.35)}
+.hero h1{font-size:30px;line-height:1}
+.hero .sub{color:var(--mist);font-size:14px;margin-top:4px}
+.banner{border-radius:18px;padding:16px;margin:8px 0 14px;background:linear-gradient(120deg,#0e4255,#123744 60%,#2a1f4a);border:1px solid var(--line)}
+.banner h2{font-size:22px}
+.banner p{margin:6px 0 0;color:var(--mist);font-size:14px}
+.banner.live{background:linear-gradient(120deg,#5a1f3a,#3a1d4f 55%,#123744);border-color:rgba(255,95,182,.4)}
+.banner.live h2::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--pink);margin-right:8px;vertical-align:middle;animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.me{display:flex;gap:10px;align-items:end;margin:6px 0 12px}
+.me .field{flex:1;margin:0}
+.sticky{position:sticky;top:0;z-index:5;padding-block:10px;background:linear-gradient(var(--abyss) 80%,transparent)}
+.cats{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+.song{display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:var(--deep);border:1px solid var(--line)}
+.song .thumb{width:84px;height:52px}
+.song .grow{flex:1;min-width:0}
+.song .t{font-family:var(--f-display);font-size:18px;line-height:1.1}
+.song .s{font-size:13px;color:var(--mist);margin-top:2px}
+.cat-h{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mist);font-weight:700;margin:20px 0 8px}
+.spot{border-radius:18px;padding:16px;margin:4px 0 14px;background:linear-gradient(120deg,#123744,#0b2530);border:1px solid var(--ok)}
+.spot.next{border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,95,182,.18);animation:glow 1.2s infinite alternate}
+@keyframes glow{to{box-shadow:0 0 0 10px rgba(255,95,182,.05)}}
+.spot .big{font-family:var(--f-display);font-size:28px;line-height:1.05}
+.q-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--deep);border:1px solid var(--line)}
+.q-row .n{font-family:var(--f-display);font-size:20px;width:28px;text-align:center;color:var(--mist)}
+.q-row.now{border-color:var(--pink)}
+.q-row.now .n{color:var(--pink)}
+.sheet-bg{position:fixed;inset:0;background:rgba(2,10,14,.7);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--deep);border:1px solid var(--line);border-radius:22px 22px 0 0;width:min(560px,100%);padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow:auto}
+.sheet h3{font-size:24px}
+.row2{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.cheer{position:sticky;top:8px;z-index:8;display:flex;flex-direction:column;gap:2px;margin:6px 0 12px;padding:14px 16px;border-radius:18px;background:linear-gradient(120deg,#ff5fb6,#ffb36b);color:#2a0618;box-shadow:0 10px 30px rgba(255,95,182,.35)}
+.cheer b{font-family:var(--f-display);font-weight:400;font-size:22px;line-height:1.1}.cheer span{font-size:14px}
+.cheer.pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1)}@keyframes pop{0%{transform:scale(.85);opacity:0}100%{transform:none;opacity:1}}
+.pushbox{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--deep);border:1px dashed var(--line)}
+.spot .row2 .btn{flex:1 1 140px}
+.spot .row2 .btn.emo{flex:0 0 auto;font-size:22px;padding:6px 12px}
+@media (prefers-reduced-motion: reduce){.cheer.pop,.spot.next{animation:none}}
+.foot{margin:30px 0 40px;color:var(--dim);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap gut">
+  <header class="hero"><img src="icon.svg" alt=""><div><h1 id="roomName">Reef Float Karaoke</h1><div class="sub" id="roomSub">Sea-creature songs on the front-yard reef</div></div></header>
+  <div class="demo" id="demoNote" hidden>Demo mode: requests stay on this device until the reef's server is connected.</div>
+  <section class="banner" id="banner"><h2 id="bTitle">Song requests are open</h2><p id="bText"></p></section>
+
+  <section id="cheer" class="cheer" hidden aria-live="assertive"></section>
+  <section id="spot" class="spot" hidden></section>
+  <section id="pushBox" class="pushbox" hidden></section>
+
+  <div class="me"><div class="field"><label for="name">Your name (shown on the big screen when it's your turn)</label><input class="in" id="name" maxlength="40" autocomplete="nickname" placeholder="Your name, or Mandy &amp; Joe for a duet"></div></div>
+
+  <section id="queueBox" hidden>
+    <div class="cat-h">Up next on the reef</div>
+    <div class="list" id="qList"></div>
+  </section>
+
+  <div class="sticky">
+    <input class="in" id="q" type="search" placeholder="Search songs, artists or originals" autocomplete="off" aria-label="Search songs">
+    <div class="cats" id="cats"></div>
+  </div>
+  <div id="songs"></div>
+
+  <section class="card" style="margin-top:22px">
+    <h3 style="font-size:22px">Don't see your song?</h3>
+    <p class="m" style="margin:6px 0 0">Ask for it and we'll try to add it, with a sea-creature twist. Got an idea for a theme? Tell us.</p>
+    <div class="row2" style="justify-content:flex-start"><button class="btn" id="newBtn" type="button">Request a new song</button></div>
+  </section>
+  <p class="foot">Be kind: names and requests go up on a big screen in front of the whole street.</p>
+</div>
+
+<div class="sheet-bg" id="sheet" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <h3 id="shTitle"></h3><p class="m" id="shSub" style="margin:4px 0 0"></p>
+  <div id="shBody"></div>
+  <div class="row2"><button class="btn ghost" id="shCancel" type="button">Cancel</button><button class="btn primary" id="shGo" type="button"></button></div>
+</div></div>
+
+<script src="catalog.js"></script>
+<script src="filter.js"></script>
+<script src="event-config.js"></script>
+<script src="actions.js"></script>
+<script src="cheers.js"></script>
+<script src="event-core.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CAT=window.REEF_CATALOG||[];
+let TH=[];
+function toast(m,bad){const d=document.createElement('div');d.className='toast'+(bad?' bad':'');d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
+try{$('name').value=localStorage.getItem('reefev:name')||''}catch(e){}
+$('name').addEventListener('change',()=>{try{localStorage.setItem('reefev:name',$('name').value.trim())}catch(e){}});
+$('demoNote').hidden=!EV.isDemo;
+let S=EV.state,catSel='All';
+const titleOf=k=>{const c=CAT.find(x=>x.k===k);if(c)return c.title;const r=(S.remixes||[]).find(x=>'remix:'+x.id===k);return r?r.title:k};
+function songsList(){const base=CAT.map(c=>({...c}));(S.remixes||[]).forEach(r=>{const b=CAT.find(c=>c.k===r.base);if(b)base.push({k:'remix:'+r.id,title:r.title,orig:b.orig,artist:b.artist,cat:'Remixes',th:b.th})});return base}
+function renderCats(){const cats=['All',...new Set(songsList().map(s=>s.cat))];$('cats').innerHTML=cats.map(c=>`<button class="tab" type="button" aria-selected="${c===catSel}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
+$('cats').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;catSel=b.dataset.c;renderCats();renderSongs()});
+function renderSongs(){const q=$('q').value.trim().toLowerCase();const ev=S.mode==='event';
+  const list=songsList().filter(s=>(catSel==='All'||s.cat===catSel)&&(!q||(s.title+' '+s.orig+' '+s.artist).toLowerCase().includes(q)));
+  let h='',last='';
+  list.forEach(s=>{if(s.cat!==last){h+=`<div class="cat-h">${esc(s.cat)}</div>`;last=s.cat}
+    const th=TH.length&&s.th!=null?TH[s.th%TH.length]:'';
+    h+=`<div class="song" style="margin-bottom:8px"><div class="thumb" style="${th?`background-image:url('${th}')`:''}"></div><div class="grow"><div class="t">${esc(s.title)}</div><div class="s">${s.straight?'Sung as written':'To '+esc(s.orig)}${s.artist?' · '+esc(s.artist):''}</div></div>${ev&&(S.nixed||{})[s.k]?'<span class="pill warn">Taking a break tonight</span>':`<button class="btn ${ev?'primary':''} small" type="button" data-k="${esc(s.k)}">${ev?'Sing this':'Request'}</button>`}</div>`});
+  $('songs').innerHTML=h||'<p class="empty">No songs match. Request it below!</p>'}
+$('q').addEventListener('input',renderSongs);
+$('songs').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;const k=b.dataset.k;S.mode==='event'?askSing(k):askRequest(k)});
+$('newBtn').onclick=()=>askNew();
+
+let onGo=null;
+function sheet(title,sub,body,go,fn){$('shCancel').textContent='Cancel';$('shTitle').textContent=title;$('shSub').textContent=sub||'';$('shBody').innerHTML=body;$('shGo').textContent=go;onGo=fn;$('sheet').hidden=false;const f=$('shBody').querySelector('input');if(f)setTimeout(()=>f.focus(),50)}
+$('shCancel').onclick=()=>{$('sheet').hidden=true};
+$('sheet').addEventListener('click',e=>{if(e.target===$('sheet'))$('sheet').hidden=true});
+$('shGo').onclick=async()=>{if(!onGo)return;$('shGo').disabled=true;try{await onGo()}finally{$('shGo').disabled=false}};
+const nameField=()=>`<div class="field"><label for="shName">Your name</label><input class="in" id="shName" maxlength="40" value="${esc($('name').value)}" placeholder="First name or stage name"></div>`;
+const takeName=()=>{const n=($('shName')||{}).value||'';$('name').value=n.trim();try{localStorage.setItem('reefev:name',n.trim())}catch(e){}return n.trim()};
+const repeatMsg=(rep,t)=>rep.sung?(rep.gap===1?t+' was the last song sung.':t+' was sung just '+rep.gap+' songs ago.')
+  :(rep.gap===1?t+' is already the song right before you.':t+' is already coming up, '+rep.gap+' songs before you.');
+function askSing(k){sheet('Sing '+titleOf(k)+'?','You’ll get a heads-up here when you’re next.',nameField(),'Add me to the line',async()=>{
+  const nm=takeName();const r=await EV.call('queue',{k,title:titleOf(k),name:nm});
+  if(!r.ok&&r.repeat){sheet('Heads up!',repeatMsg(r.repeat,titleOf(k))+' The same song twice that close can drag. Want to pick another?','','Sing it anyway',()=>askSingNow(k,nm));$('shCancel').textContent='Pick another';return}
+  if(!r.ok){toast(r.msg||'Couldn’t add you.',true);return}
+  unlockSound();try{localStorage.setItem('reefev:mine',r.id);localStorage.setItem('reefev:mineEv',S.eventId||'')}catch(e){}$('sheet').hidden=true;renderQueue();toast('You’re in line! Waiting for the DJ to approve.')})}
+async function askSingNow(k,nm){const r=await EV.call('queue',{k,title:titleOf(k),name:nm,anyway:true});
+  if(!r.ok){toast(r.msg||'Couldn’t add you.',true);return}
+  $('sheet').hidden=true;unlockSound();try{localStorage.setItem('reefev:mine',r.id);localStorage.setItem('reefev:mineEv',S.eventId||'')}catch(e){}renderQueue();toast('You’re in line! Waiting for the DJ to approve.')}
+function askRequest(k){sheet('Request '+titleOf(k),'Want a fresh parody of this one? Add a theme (optional).',nameField()+`<div class="field"><label for="shTheme">Theme idea (optional)</label><input class="in" id="shTheme" maxlength="60" placeholder="e.g. make it about otters"></div>`,'Send request',async()=>{
+  const r=await EV.call('request',{type:'library',k,title:titleOf(k),theme:$('shTheme').value,name:takeName()});if(!r.ok){toast(r.msg||'Couldn’t send that.',true);return}
+  $('sheet').hidden=true;toast('Request sent. Thanks!')})}
+function askNew(){sheet('Request a new song','We’ll try to add it, sea creatures and all.',`<div class="field"><label for="shSong">Song</label><input class="in" id="shSong" maxlength="60" placeholder="Song title"></div><div class="field"><label for="shArtist">Artist</label><input class="in" id="shArtist" maxlength="40" placeholder="Who sings it"></div><div class="field"><label for="shTheme">Theme idea (optional)</label><input class="in" id="shTheme" maxlength="60" placeholder="e.g. a jellyfish who can't dance"></div>`+nameField(),'Send request',async()=>{
+  const r=await EV.call('request',{type:'new',title:$('shSong').value,artist:$('shArtist').value,theme:$('shTheme').value,name:takeName()});if(!r.ok){toast(r.msg||'Couldn’t send that.',true);return}
+  $('sheet').hidden=true;toast('Got it! We’ll see what we can do.')})}
+
+function renderBanner(){const ev=S.mode==='event';if(S.room&&S.room.code!=='main'){$('roomName').textContent=S.room.name;$('roomSub').textContent='Reef Float Karaoke · room '+S.room.code}$('banner').classList.toggle('live',ev);
+  $('bTitle').textContent=ev?'The show is live!':'Song requests are open';
+  $('bText').textContent=ev?'Pick a song, add your name, and the DJ will call you up. Your name goes on the big screen.':'Tell us what you want to hear at the next show. Ask for a library song, a new theme, or a song we don’t have yet.'}
+const LSX={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+let lastStage=null,actx=null,coldArm=0,titleT=null,wl=null;
+function unlockSound(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}}
+function chime(big){try{if(!actx)return;const t=actx.currentTime;(big?[523,659,784,1047,1319]:[659,784,1047]).forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type='triangle';o.frequency.value=f;const s=t+i*.12;g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.25,s+.02);g.gain.exponentialRampToValueAtTime(.001,s+.5);o.connect(g).connect(actx.destination);o.start(s);o.stop(s+.55)})}catch(e){}}
+const BASE_TITLE=document.title;
+function flashTitle(msg){clearInterval(titleT);let on=0,n=0;titleT=setInterval(()=>{document.title=(on=!on)?msg:BASE_TITLE;if(++n>40){clearInterval(titleT);document.title=BASE_TITLE}},800)}
+function showCheer(stage,me,loud){const c=reefCheers(stage,me.name||$('name').value,me.title,me.id);$('cheer').innerHTML=`<b>${esc(c.title)}</b><span>${esc(c.body)}</span>`;$('cheer').hidden=false;
+  if(!loud)return;$('cheer').classList.remove('pop');void $('cheer').offsetWidth;$('cheer').classList.add('pop');
+  try{navigator.vibrate&&navigator.vibrate(stage==='up'?[300,120,300,120,500]:[200,100,200])}catch(e){}chime(stage==='up');flashTitle(c.title)}
+const PUSH_OK=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+const IOSDEV=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+const b64key=s=>{const p=s.replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(atob(p+'='.repeat((4-p.length%4)%4)),c=>c.charCodeAt(0))};
+async function pushOn(me){unlockSound();try{const reg=await navigator.serviceWorker.register('sw.js');await navigator.serviceWorker.ready;
+  const perm=await Notification.requestPermission();if(perm!=='granted'){toast('No problem. Keep this page open and it will buzz you.',true);return}
+  let sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();
+  sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64key(S.settings.vapid)});
+  const r=await EV.call('pushSub',{eventId:S.eventId,qid:me.id,sub:sub.toJSON()});if(!r.ok){toast(r.msg||'Couldn’t turn on pings.',true);await sub.unsubscribe();return}
+  LSX.set('reefev:pushEv',S.eventId);LSX.set('reefev:pushQ',me.id);toast('🔔 You’re set! We’ll ping you before your turn.');renderQueue()}catch(e){toast('This browser couldn’t turn on pings. Keep this page open instead.',true)}}
+async function pushOff(silent){const q=LSX.get('reefev:pushQ');const had=!!q;LSX.del('reefev:pushEv');LSX.del('reefev:pushQ');
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe()}catch(e){}
+  if(!silent&&had)EV.call('pushUnsub',{qid:q})}
+async function wakeToggle(){try{if(wl){await wl.release();wl=null}else{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;renderQueue()})}}catch(e){toast('Your phone won’t keep the screen on from here. Tap it now and then.',true)}renderQueue()}
+function renderPush(me){const box=$('pushBox');box.hidden=false;const on=LSX.get('reefev:pushEv')===S.eventId&&LSX.get('reefev:pushQ')===me.id;
+  if(on)box.innerHTML=`<b>🔔 Pings are on</b><span class="m">We’ll buzz you 2 songs out, when you’re next, and when you’re on. Tonight only: they switch off by themselves when the show ends.</span><div><button class="btn small ghost" id="pushOffB" type="button">Stop pings</button></div>`;
+  else if(EV.isDemo||!(S.settings||{}).vapid)box.innerHTML=`<span class="m">🔔 Phone pings switch on once the reef’s live server is connected. For now, keep this page open and it will buzz you.</span>`;
+  else if(IOSDEV&&!STANDALONE)box.innerHTML=`<span class="m">📱 iPhone tip: Apple only allows pings from pages added to the Home Screen (Share, then Add to Home Screen). Easier: keep this page open and it will buzz you 2 songs out.</span>`;
+  else if(!PUSH_OK)box.innerHTML=`<span class="m">This browser can’t do pings. Keep this page open and it will buzz you 2 songs out.</span>`;
+  else box.innerHTML=`<button class="btn" id="pushOnB" type="button">🔔 Ping me 2 songs before my turn</button><span class="m">Optional, for tonight only. Pings switch off by themselves when the show ends, and we don’t keep your details.</span>`;
+  const a=$('pushOnB');if(a)a.onclick=()=>pushOn(me);const b=$('pushOffB');if(b)b.onclick=async()=>{await pushOff(false);toast('Pings off.');renderQueue()}}
+function clearMine(){LSX.del('reefev:mine');LSX.del('reefev:mineEv');pushOff(true);lastStage=null;$('cheer').hidden=true;$('pushBox').hidden=true;$('spot').hidden=true}
+function renderQueue(){const ev=S.mode==='event';$('queueBox').hidden=!ev;
+  const mine=LSX.get('reefev:mine'),mineEv=LSX.get('reefev:mineEv');
+  if(mine&&(!ev||(S.eventId&&mineEv&&mineEv!==S.eventId))){clearMine();return}
+  if(!ev){clearMine();return}
+  const vis=S.queue.filter(q=>['up','approved'].includes(q.status));
+  $('qList').innerHTML=vis.length?vis.slice(0,12).map((q,i)=>`<div class="q-row ${q.status==='up'?'now':''}"><span class="n">${q.status==='up'?'♪':i+(vis[0].status==='up'?0:1)}</span><div class="grow"><b>${esc(q.name)}</b><div class="m">${esc(q.title)}</div></div>${q.status==='up'?'<span class="pill hot">On stage</span>':''}</div>`).join(''):'<p class="empty">Nobody in line yet. Be the first!</p>';
+  const me=mine&&S.queue.find(q=>q.id===mine);
+  if(me&&me.status==='done'){renderAfter(me);return}
+  if(!me||['done','rejected'].includes(me.status)){if(me&&me.status==='rejected'&&me.reason!=='cold feet')toast('The DJ couldn’t fit that one in. Pick another?',true);if(mine)clearMine();return}
+  const ahead=vis.findIndex(q=>q.id===me.id);
+  const stage=me.status==='up'?'up':me.status==='pending'?'pending':ahead<=1?'next':ahead===2?'two':'wait';
+  if(['two','next','up'].includes(stage)){if(stage!==lastStage)showCheer(stage,me,lastStage!==null)}else $('cheer').hidden=true;
+  lastStage=stage;
+  const nm=esc(me.name||$('name').value);
+  const big={pending:'Waiting for the DJ',wait:`${ahead} songs until you`,two:'2 songs until you',next:'You’re next!',up:'You’re on!'}[stage];
+  const sub={pending:esc(me.title)+' · you’ll join the line once the DJ approves it.',wait:esc(me.title),two:esc(me.title)+' · start warming up!',next:esc(me.title)+' · head to the reef float.',up:'Grab the mic! '+esc(me.title)}[stage];
+  $('spot').className='spot'+(['next','up'].includes(stage)?' next':'');$('spot').hidden=false;
+  const armed=Date.now()-coldArm<4000;
+  $('spot').innerHTML=`<div class="m">${nm}</div><div class="big">${big}</div><div class="m" style="margin-top:4px">${sub}</div>
+    <p class="m" style="margin:10px 0 0">Keep this page open so it can buzz you. Phones pause pages when the screen locks.</p>
+    <div class="row2" style="justify-content:flex-start">${'wakeLock' in navigator?`<button class="btn small" id="wakeB" type="button">${wl?'☀️ Screen staying on':'☀️ Keep my screen on'}</button>`:''}<button class="btn small ghost" id="coldB" type="button">${armed?'Tap again to give up your spot':'🥶 Cold feet? Give up my spot'}</button></div>`;
+  const w=$('wakeB');if(w)w.onclick=wakeToggle;
+  $('coldB').onclick=async()=>{if(Date.now()-coldArm>=4000){coldArm=Date.now();renderQueue();setTimeout(renderQueue,4100);return}coldArm=0;
+    const r=await EV.call('cancelMine',{id:me.id});if(r.ok===false){toast('Couldn’t change that. Find the DJ!',true);return}pushOff(false);clearMine();toast('No worries! 🐢 Your spot went to the next singer. Come back when you’re ready.')};
+  renderPush(me)}
+/* after the song: thank the DJ, optional tip */
+const TIP_DEFAULT='https://venmo.com/code?user_id=1897503783911424832';
+function renderAfter(me){$('cheer').hidden=true;lastStage='done';const sp=$('spot');sp.className='spot';sp.hidden=false;
+  const st=S.settings||{},djTip=st.tipUrl||'',mine=!!djTip||!S.room||S.room.code==='main';
+  const tip=djTip||st.creatorTipUrl||TIP_DEFAULT;
+  sp.innerHTML=`<div class="big">That was fin-tastic! 🎉</div><div class="m" style="margin-top:4px">Thanks for singing ${esc(me.title)}.</div>
+    <div style="margin-top:12px"><b>Send the DJ some love</b><div class="row2" style="justify-content:flex-start;margin-top:6px" id="thx">${me.thanked?`<span class="pill ok">${me.thanked} Sent! The DJ says thanks right back.</span>`:['🙌','👏','🐚','🔥','💙'].map(e=>`<button class="btn small emo" type="button" data-e="${e}" aria-label="Send ${e}">${e}</button>`).join('')}</div></div>
+    ${tip?`<div class="pushbox" style="margin:12px 0 0"><b>${mine?'Tip the DJ':'Tip the songwriter'} (totally optional)</b><span class="m">${mine?'Always appreciated, never expected. Tips go toward making more songs. If you\'re gonna tip, tip the DJ, not your boat. 🚤':'Always appreciated, never expected. Tips go to the creator of Reef Float Karaoke and pay for more songs. If you\'re gonna tip, tip the writer, not your boat. 🚤'}</span><a class="btn primary" href="${esc(tip)}" target="_blank" rel="noopener" style="align-self:flex-start">Tip with Venmo</a></div>`:''}
+    <div class="row2" style="justify-content:flex-start"><button class="btn" id="againB" type="button">Sing another</button><button class="btn ghost" id="doneB" type="button">Done</button></div>`;
+  sp.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const r=await EV.call('thanks',{id:me.id,emoji:b.dataset.e});if(r.ok===false){toast('Couldn’t send that one.',true);return}toast('Sent! 💙')});
+  $('againB').onclick=()=>{clearMine();renderQueue();$('q').scrollIntoView({behavior:'smooth',block:'start'})};
+  $('doneB').onclick=()=>{clearMine();renderQueue()};
+  $('pushBox').hidden=true}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){try{actx&&actx.resume()}catch(e){}renderQueue()}});
+EV.on(s=>{S=s;renderBanner();renderQueue();renderCats();renderSongs()});
+/* thumbnails load after the list is on screen */
+['thumbs-1.js','thumbs-2.js','thumbs-3.js','thumbs-4.js'].reduce((p,src)=>p.then(()=>new Promise(r=>{const sc=document.createElement('script');sc.src=src;sc.onload=sc.onerror=r;document.body.appendChild(sc)})),Promise.resolve()).then(()=>{TH=window.REEF_THUMBS||[];renderSongs()});
+</script>
+</body>
+</html>

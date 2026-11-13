@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Reef Float Karaoke · DJ booth</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="event.css">
+<style>
+.top{display:flex;align-items:center;gap:12px;padding-block:16px 8px;flex-wrap:wrap}
+.top h1{font-size:26px;flex:1}
+.top img{width:40px;height:40px;border-radius:22%}
+.status-dot{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mist)}
+.status-dot::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--warn)}
+.status-dot.on::before{background:var(--ok)}
+section.pane{margin-top:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:12px 16px;font-weight:700;color:var(--mist)}
+.seg button[aria-pressed="true"]{background:var(--coral);color:var(--coral-ink)}
+.seg button.ev[aria-pressed="true"]{background:var(--pink);color:#2a0618}
+.now{display:grid;gap:10px;background:linear-gradient(120deg,#3a1d4f,#123744);border:1px solid rgba(255,95,182,.4);border-radius:18px;padding:16px;margin:14px 0}
+.now .big{font-family:var(--f-display);font-size:28px;line-height:1.05}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.ctl .btn{flex:1 1 90px}
+h2.sec{font-size:20px;margin:22px 0 8px;display:flex;align-items:center;gap:8px}
+.cnt{font-family:var(--f-body);font-size:13px;font-weight:700;background:var(--kelp);border-radius:999px;padding:2px 9px;color:var(--mist)}
+.acts{display:flex;gap:6px;flex:none}
+.acts .btn{padding:7px 10px}
+.prog{height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}.prog i{display:block;height:100%;background:linear-gradient(90deg,#ff5fb6,#ffd36b);transition:width .8s linear}
+.disp{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mist)}
+.disp .pill.bad{color:var(--coral);border-color:rgba(255,123,94,.5)}
+.ctl.small .btn{flex:1 1 70px;padding:9px 8px;font-size:14px}
+.add{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.add .in{flex:1 1 180px}
+.gate{max-width:360px;margin:12vh auto;text-align:center}
+.gate .in{text-align:center;font-size:24px;letter-spacing:.3em}
+table.pv{width:100%;border-collapse:collapse;font-size:14px}
+table.pv td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.pv td.n{color:var(--dim);width:28px;text-align:right}
+table.pv td.r{color:var(--mist);width:40%}
+table.pv tr.warn td{background:rgba(243,197,107,.08)}
+table.pv tr.bad td{background:rgba(255,123,94,.12)}
+.qr{background:#fff;border-radius:18px;padding:18px;display:inline-block}
+.qr svg{display:block;width:min(70vw,320px);height:auto}
+@media print{body{background:#fff;color:#000}.top,.tabs,.demo,.noprint{display:none!important}section.pane{display:none!important}#qrPane{display:block!important;text-align:center}}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:14px}
+</style>
+</head>
+<body>
+<div class="wrap gut">
+  <div class="gate" id="gate">
+    <img src="icon.svg" alt="" width="72" height="72" style="border-radius:22%">
+    <h1 style="font-size:28px;margin-top:10px">DJ booth</h1>
+    <p class="m">Enter the admin PIN to run the show.</p>
+    <input class="in" id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" aria-label="Admin PIN">
+    <p><button class="btn primary" id="pinGo" type="button" style="width:100%">Unlock</button></p>
+    <p class="demo" id="pinDemo" hidden>Demo mode: the PIN is 1234 until you change it in Settings.</p>
+  </div>
+
+  <div id="main" hidden>
+    <div class="top"><img src="icon.svg" alt=""><h1>DJ booth</h1><span class="pill" id="roomPill" hidden></span><span class="status-dot" id="conn">Demo</span></div>
+    <div class="demo" id="demoNote" hidden>Demo mode: everything syncs between tabs on this device only. Open the main screen and the join page in other tabs on this same browser to test. Connecting the Cloudflare Worker makes it work across phones.</div>
+    <div class="tabs" role="tablist" style="margin-top:12px">
+      <button class="tab" role="tab" data-p="live" aria-selected="true">Live</button>
+      <button class="tab" role="tab" data-p="req" aria-selected="false">Requests <span id="reqCnt"></span></button>
+      <button class="tab" role="tab" data-p="remix" aria-selected="false">Remix</button>
+      <button class="tab" role="tab" data-p="qr" aria-selected="false">QR code</button>
+      <button class="tab" role="tab" data-p="set" aria-selected="false">Settings</button>
+    </div>
+
+    <section class="pane" id="livePane">
+      <div class="seg" role="group" aria-label="Mode"><button type="button" data-m="requests">Requests (event off)</button><button type="button" class="ev" data-m="event">Event on</button></div>
+      <p class="m" id="modeHelp"></p>
+      <div class="now" id="nowBox"></div>
+      <div class="card" style="margin-top:4px">
+        <div class="disp" id="dispInfo"></div>
+        <div class="ctl small" style="margin-top:10px"><button class="btn" data-c="focus" type="button">⤢ Full screen</button><button class="btn" data-c="qr" type="button">▦ QR on screen</button><button class="btn" data-c="stop" type="button">■ Stop</button></div>
+        <h3 style="font-size:18px;margin-top:14px">Play a song now</h3>
+        <div class="add" style="margin-top:6px"><select class="in" id="nowSong" aria-label="Song to play now"></select><input class="in" id="nowName" maxlength="20" placeholder="Singer (optional)" aria-label="Singer name"><button class="btn primary" id="nowGo" type="button">Play now</button></div>
+        <p class="m" style="margin:6px 0 0">Skips the line. Needs Event on.</p>
+      </div>
+      <h2 class="sec">Waiting for approval <span class="cnt" id="pendCnt">0</span></h2>
+      <div class="list" id="pendList"></div>
+      <h2 class="sec">The line <span class="cnt" id="lineCnt">0</span></h2>
+      <div class="list" id="lineList"></div>
+      <div class="add"><select class="in" id="addSong" aria-label="Song to add"></select><input class="in" id="addName" maxlength="20" placeholder="Singer name" aria-label="Singer name"><button class="btn" id="addGo" type="button">Add to the line</button></div>
+      <h2 class="sec">Thank-yous tonight <span class="cnt" id="thxCnt">0</span></h2>
+      <div class="list" id="thxList"></div>
+      <h2 class="sec">86’d tonight <span class="cnt" id="nixCnt">0</span></h2>
+      <p class="m" style="margin:0 0 8px">Guests can’t sign up for these until the next event. People already in line keep their spot.</p>
+      <div class="list" id="nixList"></div>
+      <h2 class="sec">Done tonight <span class="cnt" id="doneCnt">0</span></h2>
+      <div class="list" id="doneList"></div>
+      <p><button class="btn small ghost" id="clearDone" type="button">Clear done and rejected</button></p>
+    </section>
+
+    <section class="pane" id="reqPane" hidden>
+      <div class="grid2">
+        <div><h2 class="sec">Library requests</h2><div class="list" id="libReq"></div></div>
+        <div><h2 class="sec">Songs to add</h2><div class="list" id="newReq"></div></div>
+      </div>
+      <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="csv" type="button">Download as CSV</button><button class="btn ghost" id="clearReq" type="button">Clear all requests</button></p>
+    </section>
+
+    <section class="pane" id="remixPane" hidden>
+      <div class="card">
+        <h2 style="font-size:22px">New parody of a library song</h2>
+        <p class="m" style="margin:6px 0 0">The new lyrics reuse the song's track, video and timing, so they're playable the moment you approve them. Nothing reaches the big screen until you do.</p>
+        <div class="field"><label for="rxSong">Song</label><select class="in" id="rxSong"></select></div>
+        <div class="field"><label for="rxTheme">Theme</label><input class="in" id="rxTheme" maxlength="60" placeholder="e.g. otters holding hands so they don't drift away"></div>
+        <div class="field"><label for="rxTitle">Title on screen</label><input class="in" id="rxTitle" maxlength="80"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="rxGen" type="button" disabled title="Needs the Cloudflare Worker and an API key">Generate with AI</button>
+          <button class="btn" id="rxCopy" type="button">Copy prompt for the Claude app</button>
+        </div>
+        <p class="m" id="rxGenNote">One-tap generation turns on once the Cloudflare Worker and API key are connected. Until then, copy the prompt, paste it into the Claude app, and paste the answer below.</p>
+        <div class="field"><label for="rxPaste">Paste the new lyrics (the JSON list from Claude, or one line per row)</label><textarea class="in" id="rxPaste" spellcheck="false"></textarea></div>
+        <button class="btn" id="rxCheck" type="button">Check the lyrics</button>
+        <div id="rxPreview"></div>
+      </div>
+      <h2 class="sec">Approved remixes <span class="cnt" id="rxCnt">0</span></h2>
+      <div class="list" id="rxList"></div>
+    </section>
+
+    <section class="pane" id="qrPane" hidden>
+      <div style="text-align:center">
+        <h2 style="font-size:28px">Pick a song, get on the reef!</h2>
+        <p class="m">Scan to browse the songs and sign up to sing.</p>
+        <div class="qr" id="qrBox"></div>
+        <p class="m" id="qrUrl" style="word-break:break-all"></p>
+        <p class="noprint"><button class="btn primary" id="qrPrint" type="button">Print this sign</button></p>
+      </div>
+    </section>
+
+    <section class="pane" id="setPane" hidden>
+      <div class="card">
+        <h2 style="font-size:22px">Show</h2>
+        <div class="field"><label for="coverSecs">"Up next" card on the big screen (seconds)</label><input class="in" id="coverSecs" type="number" min="0" max="20"></div>
+        <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="autoStart" style="width:18px;height:18px"> Start the song automatically after the card (off = wait for Play here)</label>
+        <label style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" id="cornerQR" style="width:18px;height:18px"> Small QR code in the corner of the display during songs, so people can browse and sign up</label>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 style="font-size:22px">Tips</h2>
+        <p class="m" style="margin:6px 0 0">After each song, singers see a thank-you and an optional tip button. Add your own link to get tips. Leave it empty and tips go to the creator of Reef Float Karaoke, which pays for new songs.</p>
+        <div class="field"><label for="tipUrl">Tip link (Venmo or any https link)</label><input class="in" id="tipUrl" inputmode="url" placeholder="https://venmo.com/code?user_id=..."></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 style="font-size:22px">Banned words</h2>
+        <p class="m" style="margin:6px 0 0">A built-in list already blocks swearing, slurs and look-alike spellings. Add anything else here, one per line (nicknames, local in-jokes you don't want on screen).</p>
+        <div class="field"><textarea class="in" id="extra" spellcheck="false" aria-label="Extra banned words"></textarea></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 style="font-size:22px">Admin PIN</h2>
+        <div class="field"><label for="newPin">New PIN (4 to 8 digits)</label><input class="in" id="newPin" inputmode="numeric" maxlength="8"></div>
+      </div>
+      <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn primary" id="saveSet" type="button">Save settings</button><button class="btn" id="seed" type="button">Add demo guests</button><button class="btn ghost" id="reset" type="button">Reset tonight's line</button></p>
+      <p class="m" id="backendInfo"></p>
+    </section>
+  </div>
+</div>
+
+<script src="catalog.js"></script>
+<script src="filter.js"></script>
+<script src="qr.js"></script>
+<script src="event-config.js"></script>
+<script src="actions.js"></script>
+<script src="event-core.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CAT=window.REEF_CATALOG||[];
+function toast(m,bad){const d=document.createElement('div');d.className='toast'+(bad?' bad':'');d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+let S=EV.state;
+$('pinDemo').hidden=!EV.isDemo;$('demoNote').hidden=!EV.isDemo;
+try{const p=sessionStorage.getItem('reefev:pin');if(p)EV.pin=p}catch(e){}
+async function unlock(p){EV.pin=p;const r=await EV.call('login',{});if(r.ok){try{sessionStorage.setItem('reefev:pin',p)}catch(e){}$('gate').hidden=true;$('main').hidden=false;EV.reconnect();start()}else{EV.pin='';toast(r.msg||'Wrong PIN',true)}}
+$('pinGo').onclick=()=>unlock($('pin').value.trim());
+$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')$('pinGo').click()});
+if(EV.pin)unlock(EV.pin);
+
+const songTitle=k=>{const c=CAT.find(x=>x.k===k);if(c)return c.title;const r=(S.remixes||[]).find(x=>'remix:'+x.id===k);return r?r.title:k};
+const fmt=t=>{t=Math.max(0,Math.floor(t||0));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+const ago=t=>{const s=Math.round((Date.now()-t)/1000);return s<60?'just now':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
+const act=async(a,args)=>{const r=await EV.call(a,args);if(r&&r.ok===false)toast(r.msg||'That didn’t work.',true);return r};
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));
+  ['live','req','remix','qr','set'].forEach(p=>$(p+'Pane').hidden=p!==t.dataset.p);if(t.dataset.p==='qr')drawQR();if(t.dataset.p==='set')fillSet()});
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>act('setMode',{mode:b.dataset.m}));
+
+function fillSongSelects(){const opts=['<option value="">Pick a song…</option>'].concat(CAT.map(c=>`<option value="${esc(c.k)}">${esc(c.title)}</option>`),(S.remixes||[]).map(r=>`<option value="remix:${esc(r.id)}">${esc(r.title)}</option>`));
+  const keep=$('addSong').value;$('addSong').innerHTML=opts.join('');$('addSong').value=keep;const k2=$('nowSong').value;$('nowSong').innerHTML=opts.join('');$('nowSong').value=k2;
+  if(!$('rxSong').options.length){$('rxSong').innerHTML=['<option value="">Pick a song…</option>'].concat(CAT.filter(c=>c.lines&&c.lines.length).map(c=>`<option value="${esc(c.k)}">${esc(c.title)} (${esc(c.orig)})</option>`)).join('')}}
+
+const nixed=k=>!!(S.nixed||{})[k];
+const sungCount=k=>S.queue.filter(q=>q.k===k&&q.status==='done').length;
+const nixBtn=k=>nixed(k)?`<button class="btn small ghost" data-a="unnix" data-k="${esc(k)}" type="button">Bring it back</button>`:`<button class="btn small ghost" data-a="nix" data-k="${esc(k)}" type="button">86 for tonight</button>`;
+const repPill=q=>q.repeat?`<span class="pill warn" title="Same song ${q.repeat} turn${q.repeat>1?'s':''} apart">Repeat · ${q.repeat} apart</span>`:'';
+function renderLive(){if(EV.room!=='main'){$('roomPill').hidden=false;$('roomPill').textContent=(S.room&&S.room.name)||EV.room}
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.mode));
+  $('modeHelp').textContent=S.mode==='event'?'Event on: guests sign up to sing. Approved singers play in order, and the main screen loads the next song by itself.':'Event off: guests can browse and send requests and new-song ideas. Nobody can join the line.';
+  const n=S.now,pl=S.player||{};
+  $('nowBox').innerHTML=n?`<div class="m">On stage${pl.id===n.id?' · main screen: '+esc(pl.status):''}</div><div class="big">${esc(n.name)}</div><div>${esc(n.title)}</div>
+    ${pl.id===n.id&&pl.len?`<div class="prog"><i style="width:${Math.min(100,100*pl.t/pl.len).toFixed(1)}%"></i></div><div class="m" style="font-size:12px">${fmt(pl.t)} / ${fmt(pl.len)}</div>`:''}
+    <div class="ctl"><button class="btn" data-c="play" type="button">▶ Play</button><button class="btn" data-c="pause" type="button">❚❚ Pause</button><button class="btn" data-c="restart" type="button">↺ Restart</button></div>
+    <div class="ctl small"><button class="btn" data-c="seek" data-arg="-10" type="button">« 10s</button><button class="btn" data-c="seek" data-arg="10" type="button">10s »</button><button class="btn primary" data-c="next" type="button">Next singer ⏭</button></div>
+    <div class="ctl small">${nixBtn(n.k)}${sungCount(n.k)>0?`<span class="pill">${sungCount(n.k)+1}× tonight</span>`:''}</div>`
+    :`<div class="m">On stage</div><div class="big">Nobody yet</div><div class="m">${S.mode==='event'?'Approve someone and they’ll go straight to the big screen.':'Turn Event on to start the line.'}</div>`;
+  $('nowBox').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>b.dataset.c==='next'?act('next'):act('cmd',{type:b.dataset.c,arg:b.dataset.arg?+b.dataset.arg:null}));
+  const fresh=pl.at&&Date.now()-pl.at<15000;
+  $('dispInfo').innerHTML=S.mode!=='event'?'<span class="pill">Display follows the booth when Event is on</span>':
+    `<span>Display:</span>${pl.linked?'<span class="pill ok">Under DJ control</span>':'<span class="pill bad">Needs one tap on the display</span>'}<span class="pill">${esc(pl.view==='full'?'Full screen':'Normal view')}</span><span class="pill">${esc(fresh||pl.status==='playing'?pl.status||'idle':(pl.status||'idle'))}</span>`;
+  const pend=S.queue.filter(q=>q.status==='pending'),line=S.queue.filter(q=>q.status==='approved'),done=S.queue.filter(q=>['done','rejected'].includes(q.status));
+  $('pendCnt').textContent=pend.length;$('lineCnt').textContent=line.length;$('doneCnt').textContent=done.length;
+  $('pendList').innerHTML=pend.length?pend.map(q=>`<div class="item"><div class="grow"><div class="t">${esc(q.name)}</div><div class="s">${esc(q.title)} · ${ago(q.ts)}</div>${repPill(q)}${nixed(q.k)?' <span class="pill bad">86’d</span>':''}</div><div class="acts"><button class="btn ok small" data-a="approve" data-id="${q.id}" type="button">Approve</button><button class="btn small ghost" data-a="reject" data-id="${q.id}" type="button" aria-label="Reject">✕</button></div></div>`).join(''):'<p class="empty">No sign-ups waiting.</p>';
+  $('lineList').innerHTML=line.length?line.map((q,i)=>`<div class="item"><span class="pill">${i+1}</span><div class="grow"><div class="t">${esc(q.name)}</div><div class="s">${esc(q.title)}</div>${repPill(q)}${nixed(q.k)?' <span class="pill bad">86’d</span>':''}</div><div class="acts"><button class="btn small" data-a="up" data-id="${q.id}" type="button" aria-label="Move up" ${i?'':'disabled'}>▲</button><button class="btn small" data-a="down" data-id="${q.id}" type="button" aria-label="Move down" ${i<line.length-1?'':'disabled'}>▼</button><button class="btn small" data-a="playNow" data-id="${q.id}" type="button">Play now</button><button class="btn small ghost" data-a="reject" data-id="${q.id}" type="button" aria-label="Remove">✕</button></div></div>`).join(''):'<p class="empty">The line is empty.</p>';
+  const th=(S.thanks||[]);$('thxCnt').textContent=th.length;
+  if(th.length>(renderLive.seenThx??th.length)){const n=th[th.length-1];toast(`${n.emoji} ${n.name} says thanks for ${n.title}!`)}renderLive.seenThx=th.length;
+  $('thxList').innerHTML=th.length?th.slice(-8).reverse().map(x=>`<div class="item"><span style="font-size:22px">${esc(x.emoji)}</span><div class="grow"><div class="t">${esc(x.name)}</div><div class="s">${esc(x.title)} · ${ago(x.ts)}</div></div></div>`).join(''):'<p class="empty">No thank-yous yet.</p>';
+  const nx=Object.keys(S.nixed||{});$('nixCnt').textContent=nx.length;
+  $('nixList').innerHTML=nx.length?nx.map(k=>`<div class="item"><div class="grow"><div class="t">${esc(songTitle(k))}</div><div class="s">${sungCount(k)?'Sung '+sungCount(k)+'× tonight':'Not sung yet tonight'}</div></div>${nixBtn(k)}</div>`).join(''):'<p class="empty">Nothing 86’d.</p>';
+  $('doneList').innerHTML=done.length?done.slice(-12).reverse().map(q=>`<div class="item"><div class="grow"><div class="t">${esc(q.name)}</div><div class="s">${esc(q.title)}${q.status==='done'&&sungCount(q.k)>1?' · '+sungCount(q.k)+'× tonight':''}</div></div>${q.status==='done'&&!nixed(q.k)?nixBtn(q.k):''}<span class="pill ${q.status==='done'?'ok':''}">${q.status==='done'?'Sang':q.reason==='cold feet'?'Cold feet 🥶':'Removed'}</span></div>`).join(''):'<p class="empty">Nothing yet.</p>';
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id;
+  if(a==='nix'||a==='unnix'){const k=b.dataset.k;act('nix',{k,on:a==='nix'}).then(r=>{if(r&&r.ok)toast(a==='nix'?`${songTitle(k)} is 86’d for tonight.${r.queued?' '+(r.queued>1?r.queued+' people':'1 person')+' already in line '+(r.queued>1?'keep their spots':'keeps their spot')+'.':''}`:`${songTitle(k)} is back on the menu.`)});return}
+  if(a==='up'||a==='down')act('move',{id,dir:a==='up'?-1:1});else if(['approve','reject','playNow'].includes(a))act(a,{id});
+  else if(a==='remix'){const k=b.dataset.k,th=b.dataset.theme||'';document.querySelector('.tab[data-p="remix"]').click();$('rxSong').value=k;$('rxTheme').value=th;autoTitle()}
+  else if(a==='delRemix'){if(confirm('Delete this remix?'))act('deleteRemix',{id})}});
+document.querySelectorAll('#dispInfo ~ .ctl [data-c]').forEach(b=>b.onclick=()=>act('cmd',{type:b.dataset.c}));
+$('nowGo').onclick=async()=>{const k=$('nowSong').value;if(!k){toast('Pick a song first',true);return}if(S.mode!=='event'){toast('Turn Event on first',true);return}
+  const r=await act('add',{k,title:songTitle(k),name:$('nowName').value||'The Reef Crew',hold:true});if(r.ok&&r.id){await act('playNow',{id:r.id});$('nowName').value='';toast('Starting on the display')}};
+$('addGo').onclick=async()=>{const k=$('addSong').value;if(!k){toast('Pick a song first',true);return}const r=await act('add',{k,title:songTitle(k),name:$('addName').value});if(r.ok){$('addName').value='';toast('Added to the line')}};
+$('clearDone').onclick=()=>act('clearDone');
+
+function renderReq(){const lib={};S.requests.filter(r=>r.type==='library').forEach(r=>{(lib[r.k]=lib[r.k]||[]).push(r)});
+  const ks=Object.keys(lib).sort((a,b)=>lib[b].length-lib[a].length);
+  $('reqCnt').textContent=S.requests.length?'· '+S.requests.length:'';
+  $('libReq').innerHTML=ks.length?ks.map(k=>{const rs=lib[k];const themes=rs.filter(r=>r.theme);return `<div class="item" style="align-items:flex-start"><span class="pill hot">${rs.length}</span><div class="grow"><div class="t">${esc(songTitle(k))}</div><div class="s">${esc(rs.map(r=>r.name||'anon').join(', '))}</div>${themes.map(r=>`<div class="s">Theme: “${esc(r.theme)}” <button class="btn small ghost" data-a="remix" data-k="${esc(k)}" data-theme="${esc(r.theme)}" type="button">Make it</button></div>`).join('')}</div></div>`}).join(''):'<p class="empty">No requests yet.</p>';
+  const nw=S.requests.filter(r=>r.type==='new');
+  $('newReq').innerHTML=nw.length?nw.map(r=>`<div class="item" style="align-items:flex-start"><div class="grow"><div class="t">${esc(r.title)}${r.artist?' · '+esc(r.artist):''}</div><div class="s">${esc(r.name||'anon')} · ${ago(r.ts)}</div>${r.theme?`<div class="s">Theme: “${esc(r.theme)}”</div>`:''}</div></div>`).join(''):'<p class="empty">No new-song ideas yet.</p>'}
+$('csv').onclick=()=>{const rows=[['type','song','artist','theme','name','time']].concat(S.requests.map(r=>[r.type,r.type==='library'?songTitle(r.k):r.title,r.artist||'',r.theme||'',r.name||'',new Date(r.ts).toISOString()]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='reef-requests.csv';a.click()};
+$('clearReq').onclick=()=>{if(confirm('Clear every request? Download the CSV first if you want a copy.'))act('clearRequests')};
+
+/* ---- remix ---- */
+const rxBase=()=>CAT.find(c=>c.k===$('rxSong').value);
+function autoTitle(){const b=rxBase();const th=$('rxTheme').value.trim();if(b)$('rxTitle').value=b.title+(th?' (remix: '+th+')':' (remix)')}
+$('rxSong').onchange=autoTitle;$('rxTheme').oninput=autoTitle;
+function buildPrompt(b,theme){const L=b.lines;
+  return `Write new lyrics for a kid-friendly karaoke parody. They will be sung over an existing karaoke track, so they must fit its timing exactly.
+
+Tune: "${b.orig}"${b.artist?' by '+b.artist:''}. Do not quote or reuse the original song's lyrics.
+Theme: ${theme||'sea creatures and the ocean'}.
+Audience: families at a front-yard Halloween show where everyone dresses as sea creatures. Keep it clean, playful and singable. No innuendo or double meanings, no insults, no brand names, nothing scary for small kids. Real ocean facts are a bonus.
+
+Below are the ${L.length} lines of an earlier parody of the same tune, with their section and word count. Write exactly ${L.length} new lines, one for each, matching each line's syllable count and stress so it lands on the same beats, and rhyming wherever the reference lines rhyme. Repeated lines (like a chorus) can repeat in your version too. Use only the reference for rhythm; don't reuse its words or its subject.
+
+${L.map((l,i)=>`${i+1}. [${l.sec}] (${l.text.split(/\s+/).filter(Boolean).length} words) ${l.text}`).join('\n')}
+
+Reply with only a JSON array of exactly ${L.length} strings, in order. No numbering, no section labels, no commentary.`}
+$('rxCopy').onclick=async()=>{const b=rxBase();if(!b){toast('Pick a song first',true);return}const p=buildPrompt(b,$('rxTheme').value.trim());
+  try{await navigator.clipboard.writeText(p);toast('Prompt copied. Paste it into the Claude app.')}catch(e){$('rxPaste').value=p;toast('Copy didn’t work here. The prompt is in the box below; copy it from there.',true)}};
+function parseLines(txt){txt=txt.trim();const m=txt.match(/\[[\s\S]*\]/);if(m){try{const a=JSON.parse(m[0]);if(Array.isArray(a))return a.map(x=>String(x).trim())}catch(e){}}
+  return txt.split(/\n+/).map(l=>l.replace(/^\s*\d+[.)]\s*/,'').replace(/^\[[^\]]*\]\s*/,'').replace(/^\(\d+ words?\)\s*/,'').trim()).filter(Boolean)}
+let rxDraft=null;
+$('rxCheck').onclick=()=>{const b=rxBase();if(!b){toast('Pick a song first',true);return}const got=parseLines($('rxPaste').value);const L=b.lines;
+  if(!got.length){toast('Paste the lyrics first',true);return}
+  let bad=0,warn=0;const rows=L.map((l,i)=>{const g=got[i]||'';const tw=l.text.split(/\s+/).filter(Boolean).length,gw=g.split(/\s+/).filter(Boolean).length;
+    const dirty=g&&!ReefFilter.clean(g);const cls=!g||dirty?'bad':Math.abs(tw-gw)>3?'warn':'';if(cls==='bad')bad++;else if(cls==='warn')warn++;
+    return `<tr class="${cls}"><td class="n">${i+1}</td><td class="r">${esc(l.text)}</td><td>${g?esc(g):'<i>missing</i>'}${dirty?' <span class="pill warn">banned word</span>':''}</td></tr>`}).join('');
+  const extraN=got.length-L.length;
+  const ok=got.length===L.length&&bad===0;
+  rxDraft=ok?{base:b.k,theme:$('rxTheme').value.trim(),title:$('rxTitle').value.trim()||b.title+' (remix)',lines:got}:null;
+  $('rxPreview').innerHTML=`<p class="${ok?'m':'demo'}" style="margin-top:12px">${got.length} of ${L.length} lines${extraN>0?` (${extraN} extra will be ignored)`:''}. ${bad?bad+' need fixing. ':''}${warn?warn+' are a lot longer or shorter than the original line; check they fit the beat. ':''}${ok?'Ready to approve.':'Fix the lyrics in the box and check again.'}</p>
+    <div style="overflow-x:auto"><table class="pv"><tr><td></td><td class="r"><b>Rhythm reference</b></td><td><b>New line</b></td></tr>${rows}</table></div>
+    ${ok?'<p style="margin-top:12px"><button class="btn ok" id="rxSave" type="button">Approve and add to the library</button></p>':''}`;
+  if(ok)$('rxSave').onclick=async()=>{const r=await act('saveRemix',{remix:rxDraft});if(r.ok){toast('Remix added. It’s in the library and the join page.');$('rxPreview').innerHTML='';$('rxPaste').value='';rxDraft=null}}};
+function renderRemixes(){const rs=S.remixes||[];$('rxCnt').textContent=rs.length;
+  $('rxList').innerHTML=rs.length?rs.map(r=>`<div class="item"><div class="grow"><div class="t">${esc(r.title)}</div><div class="s">${esc(songTitle(r.base))} · ${r.lines.length} lines</div></div><button class="btn small ghost" data-a="delRemix" data-id="${r.id}" type="button">Delete</button></div>`).join(''):'<p class="empty">No remixes yet.</p>'}
+
+/* ---- QR ---- */
+function joinURL(){const u=new URL('join.html',location.href.split('?')[0]);if(EV.room!=='main')u.searchParams.set('room',EV.room);return u.href}
+function drawQR(){const u=joinURL();const q=qrcode(0,'M');q.addData(u);q.make();$('qrBox').innerHTML=q.createSvgTag({cellSize:8,margin:2,scalable:true});$('qrUrl').textContent=u}
+$('qrPrint').onclick=()=>window.print();
+
+/* ---- settings ---- */
+function fillSet(){const s=S.settings||{};$('coverSecs').value=s.coverSecs??6;$('autoStart').checked=s.autoStart!==false;$('cornerQR').checked=s.cornerQR!==false;$('extra').value=(s.extra||[]).join('\n');$('newPin').value='';$('tipUrl').value=s.tipUrl||'';
+  $('backendInfo').textContent=EV.isDemo?'Backend: demo (this browser only). Set REEF_WORKER_URL in event-config.js once the Cloudflare Worker is deployed.':'Backend: Cloudflare Worker '+(window.REEF_WORKER_URL||'')}
+$('saveSet').onclick=async()=>{const p=$('newPin').value.trim();if(p&&!/^\d{4,8}$/.test(p)){toast('PIN must be 4 to 8 digits',true);return}
+  const r=await act('settings',{settings:{coverSecs:$('coverSecs').value,autoStart:$('autoStart').checked,cornerQR:$('cornerQR').checked,extra:$('extra').value.split('\n'),tipUrl:$('tipUrl').value.trim(),pin:p||undefined}});
+  if($('tipUrl').value.trim()&&!/^https:\/\//.test($('tipUrl').value.trim())){toast('Tip link must start with https://',true)}
+  if(r.ok){if(p){EV.pin=p;try{sessionStorage.setItem('reefev:pin',p)}catch(e){}}toast('Saved')}};
+$('reset').onclick=()=>{if(confirm('Clear tonight’s line and what’s on stage? Requests and remixes stay.'))act('reset')};
+$('seed').onclick=async()=>{const names=['Maya','Theo','Grandpa Ray','Juniper','Otis','The Kelp Twins'];const pick=()=>CAT[Math.floor(Math.random()*CAT.length)];
+  for(const n of names){const c=pick();await EV.call('add',{k:c.k,title:c.title,name:n})}
+  if(!EV.isDemo){toast('Demo guests added');return}
+  const sObj=EV.backend.load();sObj.queue.push({id:'demo'+Date.now(),k:pick().k,title:pick().title,name:'Wren',ts:Date.now(),status:'pending',dev:'demo'});
+  sObj.requests.push({id:'r1'+Date.now(),type:'library',k:CAT[3].k,title:CAT[3].title,theme:'make it about sea otters',name:'Lila',ts:Date.now()},{id:'r2'+Date.now(),type:'new',title:'Baby Shark',artist:'Pinkfong',theme:'',name:'Ezra',ts:Date.now()});
+  if(EV.isDemo)EV.backend.save(sObj);toast('Demo guests added')};
+
+function start(){EV.on(s=>{S=s;$('conn').textContent=EV.isDemo?'Demo backend':(EV.backend.online?'Live':'Reconnecting…');$('conn').classList.toggle('on',!EV.isDemo&&EV.backend.online);
+  fillSongSelects();renderLive();renderReq();renderRemixes()});
+  if(!EV.isDemo){$('rxGen').disabled=false;$('rxGenNote').textContent='Generates on the server with your API key, then shows here for approval.'}}
+$('rxGen').onclick=async()=>{const b=rxBase();if(!b){toast('Pick a song first',true);return}$('rxGen').disabled=true;$('rxGen').textContent='Writing…';
+  const r=await EV.call('parody',{base:b.k,theme:$('rxTheme').value.trim(),prompt:buildPrompt(b,$('rxTheme').value.trim()),count:b.lines.length});
+  $('rxGen').disabled=false;$('rxGen').textContent='Generate with AI';if(!r.ok){toast(r.msg||'Generation failed',true);return}$('rxPaste').value=JSON.stringify(r.lines,null,1);$('rxCheck').click()};
+</script>
+</body>
+</html>

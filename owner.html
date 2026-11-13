@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Reef Float Karaoke · Owner</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="event.css">
+<style>
+.top{display:flex;align-items:center;gap:12px;padding-block:20px 6px}
+.top img{width:44px;height:44px;border-radius:22%}
+.top h1{font-size:28px}
+.stat{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+.stat .card{flex:1 1 140px;padding:12px 14px}
+.stat b{font-family:var(--f-display);font-weight:400;font-size:30px;display:block;line-height:1}
+.room{display:flex;flex-direction:column;gap:10px}
+.room .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.room .head h3{font-size:22px;flex:1}
+.links{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0}
+.room{overflow:hidden}
+.links div{display:flex;gap:8px;align-items:center;font-size:13px;min-width:0}
+.links input{flex:1;min-width:0}
+.links code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--mist)}
+.links span{width:64px;color:var(--mist);font-weight:700}
+.qr{width:120px;height:120px;background:#fff;border-radius:10px;padding:6px}
+.qr svg{width:100%;height:100%}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.log .item{align-items:flex-start}
+.log details{font-size:14px;margin-top:4px}
+.log details div{color:var(--mist)}
+.sec{font-size:20px;margin:26px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap gut">
+  <header class="top"><img src="icon.svg" alt=""><h1>Owner console</h1></header>
+  <p class="m" style="margin:0">Create a room for each DJ, see every room at a glance, and read every remix made on your AI credits.</p>
+
+  <section id="gate" class="card" style="margin-top:16px;max-width:420px">
+    <div class="field"><label for="key">Owner key</label><input class="in" id="key" type="password" autocomplete="current-password"></div>
+    <button class="btn primary" id="login" type="button" style="width:100%">Unlock</button>
+    <p class="demo" id="noWorker" hidden>The owner console needs the Cloudflare Worker. Set REEF_WORKER_URL in event-config.js after you deploy it.</p>
+  </section>
+
+  <main id="app" hidden>
+    <div class="stat">
+      <div class="card"><b id="sToday">0</b><span class="m">remixes made today, of <span id="sCap">30</span></span></div>
+      <div class="card"><b id="sRooms">0</b><span class="m">rooms</span></div>
+      <div class="card"><b id="sRoomCap">15</b><span class="m">remix limit per room per day</span></div>
+    </div>
+
+    <h2 class="sec">New room</h2>
+    <div class="card">
+      <div class="grid2">
+        <div class="field" style="margin:0"><label for="nName">Name guests see</label><input class="in" id="nName" maxlength="40" placeholder="Kim's Backyard Bash"></div>
+        <div class="field" style="margin:0"><label for="nCode">Room code (goes in the link)</label><input class="in" id="nCode" maxlength="32" placeholder="kims-bash" autocapitalize="off" spellcheck="false"></div>
+        <div class="field" style="margin:0"><label for="nPin">DJ PIN (4 to 8 digits)</label><input class="in" id="nPin" inputmode="numeric" maxlength="8"></div>
+      </div>
+      <p style="margin:12px 0 0"><button class="btn primary" id="create" type="button">Create room</button></p>
+    </div>
+
+    <h2 class="sec">Rooms</h2>
+    <div class="list" id="rooms"></div>
+
+    <h2 class="sec">Every remix</h2>
+    <p class="m" style="margin:-4px 0 10px">Newest first. "Made" is an AI draft, "Saved" is one a DJ added to their library.</p>
+    <div class="list log" id="log"></div>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="event-config.js"></script>
+<script src="qr.js"></script>
+<script src="catalog.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const W=(window.REEF_WORKER_URL||'').replace(/\/$/,'');
+let KEY='';try{KEY=sessionStorage.getItem('reef:owner')||''}catch(e){}
+function toast(t,bad){const el=$('toast');el.textContent=t;el.className='toast'+(bad?' bad':'');el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+async function call(act,body){try{const r=await fetch(W+'/rooms/'+act,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({master:KEY},body||{}))});return await r.json()}catch(e){return{ok:false,msg:'Can’t reach the Worker.'}}}
+const base=new URL('.',location.href).href;
+const link=(page,code)=>base+page+(code==='main'?'':'?room='+encodeURIComponent(code));
+const ago=t=>{if(!t)return'';const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':new Date(t).toLocaleDateString()};
+async function refresh(){
+  const r=await call('list');if(!r.ok){toast(r.msg||'Couldn’t load rooms',true);return}
+  $('sToday').textContent=r.spend.today;$('sCap').textContent=r.spend.cap;$('sRoomCap').textContent=r.spend.roomCap;$('sRooms').textContent=r.rooms.length;
+  $('rooms').innerHTML=r.rooms.map(x=>`<div class="card room"><div class="head"><h3>${esc(x.name)}</h3><span class="pill">${esc(x.code)}</span>${x.mode==='event'?'<span class="pill hot">Live</span>':''}<span class="pill">${x.remixes||0} remixes</span><span class="pill">${x.today||0} AI today</span></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start"><div class="qr" data-qr="${esc(link('join.html',x.code))}"></div>
+    <div class="links" style="flex:1 1 220px">${[['Guests','join.html'],['DJ booth','admin.html'],['Display','index.html']].map(([l,p])=>`<div><span>${l}</span><code>${esc(link(p,x.code))}</code><button class="btn small" type="button" data-copy="${esc(link(p,x.code))}">Copy</button></div>`).join('')}
+    ${x.code!=='main'?`<div><span>PIN</span><input class="in" style="padding:6px 8px" inputmode="numeric" maxlength="8" placeholder="New DJ PIN" data-pin="${esc(x.code)}"><button class="btn small" type="button" data-setpin="${esc(x.code)}">Reset</button></div>`:'<div><span>PIN</span><code>Set with: npx wrangler secret put ADMIN_PIN</code></div>'}</div></div></div>`).join('');
+  document.querySelectorAll('[data-qr]').forEach(el=>{const q=qrcode(0,'M');q.addData(el.dataset.qr);q.make();el.innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true})});
+  const L=await call('remixes');const names=Object.fromEntries(r.rooms.map(x=>[x.code,x.name]));
+  $('log').innerHTML=L.ok&&L.log.length?L.log.map(e=>`<div class="item"><span class="pill ${e.kind==='saved'?'ok':''}">${e.kind==='saved'?'Saved':'Made'}</span><div class="grow"><div class="t">${esc(e.title||((window.REEF_CATALOG||[]).find(c=>c.k===e.base)||{}).title||e.base)}${e.theme?' · “'+esc(e.theme)+'”':''}</div><div class="s">${esc(names[e.room]||e.room)} · ${ago(e.ts)}</div>
+    <details><summary>Lyrics</summary><div>${(e.lines||[]).map(esc).join('<br>')}</div></details></div></div>`).join(''):'<p class="empty">No remixes yet.</p>'}
+document.addEventListener('click',async e=>{const c=e.target.closest('[data-copy]');if(c){try{await navigator.clipboard.writeText(c.dataset.copy);toast('Copied')}catch(_){toast('Copy didn’t work. Press and hold the link instead.',true)}return}
+  const p=e.target.closest('[data-setpin]');if(p){const code=p.dataset.setpin,pin=document.querySelector(`[data-pin="${code}"]`).value.trim();const r=await call('setPin',{code,pin});toast(r.ok?'PIN updated':r.msg||'Couldn’t update',!r.ok)}});
+$('nName').oninput=()=>{if(!$('nCode').dataset.touched)$('nCode').value=$('nName').value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)};
+$('nCode').oninput=()=>{$('nCode').dataset.touched=1};
+$('create').onclick=async()=>{const r=await call('create',{name:$('nName').value.trim(),code:$('nCode').value.trim(),pin:$('nPin').value.trim()});
+  if(!r.ok){toast(r.msg||'Couldn’t create the room',true);return}toast('Room created: '+r.code);['nName','nCode','nPin'].forEach(i=>$(i).value='');delete $('nCode').dataset.touched;refresh()};
+async function unlock(k){KEY=k;const r=await call('login');if(!r.ok){toast(r.msg||'Wrong owner key',true);KEY='';return}try{sessionStorage.setItem('reef:owner',k)}catch(e){}$('gate').hidden=true;$('app').hidden=false;refresh()}
+$('login').onclick=()=>unlock($('key').value.trim());$('key').addEventListener('keydown',e=>{if(e.key==='Enter')$('login').click()});
+if(!W){$('noWorker').hidden=false;$('login').disabled=true}else if(KEY)unlock(KEY);
+</script>
+</body>
+</html>
