@@ -53,6 +53,16 @@
 @media (prefers-reduced-motion: reduce){.cheer.pop,.spot.next{animation:none}}
 .foot{margin:30px 0 40px;color:var(--dim);font-size:13px;text-align:center}
 </style>
+<style>
+.contest{margin:14px 0}.contest h3{font-size:22px}
+.vrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.vrow .grow{flex:1 1 150px;min-width:0}
+.shells{display:flex;gap:2px}
+.shells button{background:none;border:0;padding:4px 3px;font-size:24px;line-height:1;filter:grayscale(1);opacity:.35;transition:transform .12s}
+.shells button.on{filter:none;opacity:1}.shells button:active{transform:scale(1.25)}
+.podium .vrow b.pl{font-family:var(--f-display);font-weight:400;font-size:24px;width:34px;text-align:center}
+.jellyb{background:linear-gradient(90deg,var(--pink),var(--coral));border:0;color:#2a0e07}
+</style>
 </head>
 <body>
 <div class="wrap gut">
@@ -63,6 +73,7 @@
   <section id="cheer" class="cheer" hidden aria-live="assertive"></section>
   <section id="spot" class="spot" hidden></section>
   <section id="pushBox" class="pushbox" hidden></section>
+  <section id="contestBox" class="card contest" hidden></section>
 
   <div class="me"><div class="field"><label for="name">Your name (shown on the big screen when it's your turn)</label><input class="in" id="name" maxlength="40" autocomplete="nickname" placeholder="Your name, or Mandy &amp; Joe for a duet"></div></div>
 
@@ -200,6 +211,7 @@ function renderQueue(){const ev=S.mode==='event';$('queueBox').hidden=!ev;
   const armed=Date.now()-coldArm<4000;
   $('spot').innerHTML=`<div class="m">${nm}</div><div class="big">${big}</div><div class="m" style="margin-top:4px">${sub}</div>
     <p class="m" style="margin:10px 0 0">Keep this page open so it can buzz you. Phones pause pages when the screen locks.</p>
+    ${['pending','wait','two'].includes(stage)?`<div class="row2" style="justify-content:flex-start;margin-top:10px"><a class="btn jellyb" href="jelly.html${EV.room!=='main'?'?room='+encodeURIComponent(EV.room):''}">🪼 Play Jelly Drift while you wait</a></div>`:''}
     <div class="row2" style="justify-content:flex-start">${'wakeLock' in navigator?`<button class="btn small" id="wakeB" type="button">${wl?'☀️ Screen staying on':'☀️ Keep my screen on'}</button>`:''}<button class="btn small ghost" id="coldB" type="button">${armed?'Tap again to give up your spot':'🥶 Cold feet? Give up my spot'}</button></div>`;
   const w=$('wakeB');if(w)w.onclick=wakeToggle;
   $('coldB').onclick=async()=>{if(Date.now()-coldArm>=4000){coldArm=Date.now();renderQueue();setTimeout(renderQueue,4100);return}coldArm=0;
@@ -218,8 +230,20 @@ function renderAfter(me){$('cheer').hidden=true;lastStage='done';const sp=$('spo
   $('againB').onclick=()=>{clearMine();renderQueue();$('q').scrollIntoView({behavior:'smooth',block:'start'})};
   $('doneB').onclick=()=>{clearMine();renderQueue()};
   $('pushBox').hidden=true}
+/* contest mode: rate finished performances with 1 to 5 shells; winners show once the DJ reveals them */
+const myVotes=()=>{if(S.myVotes)return S.myVotes;try{const o=JSON.parse(localStorage.getItem('reefev:votes')||'{}');return o.ev===S.eventId?o.v||{}:{}}catch(e){return{}}};
+function renderContest(){const box=$('contestBox'),C=S.contest||{};if(!C.on||S.mode!=='event'){box.hidden=true;return}
+  const mine=LSX.get('reefev:mine'),mv=myVotes();
+  const done=S.queue.filter(q=>q.status==='done'&&q.id!==mine).slice(-8).reverse();
+  if(!done.length&&!C.show){box.hidden=true;return}box.hidden=false;
+  const medal=['🥇','🥈','🥉'];
+  box.innerHTML=(C.show&&C.board&&C.board.length?`<div class="podium"><h3>🏆 Tonight’s winners</h3>${C.board.slice(0,5).map((r,i)=>`<div class="vrow"><b class="pl">${medal[i]||i+1}</b><div class="grow"><b>${esc(r.name)}</b><div class="m">${esc(r.title)}</div></div><span class="pill ok">${r.avg.toFixed(1)} 🐚 · ${r.n} vote${r.n===1?"":"s"}</span></div>`).join('')}</div>`:'')
+    +(done.length?`<h3 style="${C.show?'margin-top:16px':''}">Rate the singers</h3><p class="m" style="margin:4px 0 8px">Tap 1 to 5 shells once a song is over. You can change your mind until the show ends.</p>`
+      +done.map(q=>`<div class="vrow"><div class="grow"><b>${esc(q.name||'A brave singer')}</b><div class="m">${esc(q.title)}</div></div><div class="shells" role="group" aria-label="Rate ${esc(q.name)}">${[1,2,3,4,5].map(n=>`<button type="button" class="${(mv[q.id]||0)>=n?'on':''}" data-v="${q.id}" data-n="${n}" aria-label="${n} shell${n>1?'s':''}" aria-pressed="${mv[q.id]===n}">🐚</button>`).join('')}</div></div>`).join(''):'');
+  box.querySelectorAll('[data-v]').forEach(b=>b.onclick=async()=>{const id=b.dataset.v,n=+b.dataset.n;const r=await EV.call('vote',{id,stars:n});if(r.ok===false){toast(r.msg||'Couldn’t count that vote.',true);return}
+    if(!S.myVotes){const v=myVotes();v[id]=n;try{localStorage.setItem('reefev:votes',JSON.stringify({ev:S.eventId,v}))}catch(e){}}renderContest()})}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){try{actx&&actx.resume()}catch(e){}renderQueue()}});
-EV.on(s=>{S=s;renderBanner();renderQueue();renderCats();renderSongs()});
+EV.on(s=>{S=s;renderBanner();renderQueue();renderContest();renderCats();renderSongs()});
 /* thumbnails load after the list is on screen */
 ['thumbs-1.js','thumbs-2.js','thumbs-3.js','thumbs-4.js'].reduce((p,src)=>p.then(()=>new Promise(r=>{const sc=document.createElement('script');sc.src=src;sc.onload=sc.onerror=r;document.body.appendChild(sc)})),Promise.resolve()).then(()=>{TH=window.REEF_THUMBS||[];renderSongs()});
 </script>

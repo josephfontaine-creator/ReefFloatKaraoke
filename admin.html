@@ -86,6 +86,14 @@ table.pv tr.bad td{background:rgba(255,123,94,.12)}
       <h2 class="sec">The line <span class="cnt" id="lineCnt">0</span></h2>
       <div class="list" id="lineList"></div>
       <div class="add"><select class="in" id="addSong" aria-label="Song to add"></select><input class="in" id="addName" maxlength="20" placeholder="Singer name" aria-label="Singer name"><button class="btn" id="addGo" type="button">Add to the line</button></div>
+      <div id="contestSec" hidden>
+        <h2 class="sec">Contest <span class="cnt" id="voteCnt">0</span></h2>
+        <p class="m" style="margin:0 0 8px">Guests rate each finished song with 1 to 5 shells. Only you see the standings until you reveal them.</p>
+        <div class="list" id="contestList"></div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" id="revealB" type="button">Reveal winners to everyone</button><button class="btn ghost small" id="voteClearB" type="button">Clear votes</button></div>
+      </div>
+      <h2 class="sec">Jelly Drift high scores <span class="cnt" id="gameCnt">0</span></h2>
+      <div class="list" id="gameList"></div>
       <h2 class="sec">Thank-yous tonight <span class="cnt" id="thxCnt">0</span></h2>
       <div class="list" id="thxList"></div>
       <h2 class="sec">86’d tonight <span class="cnt" id="nixCnt">0</span></h2>
@@ -140,6 +148,11 @@ table.pv tr.bad td{background:rgba(255,123,94,.12)}
         <div class="field"><label for="coverSecs">"Up next" card on the big screen (seconds)</label><input class="in" id="coverSecs" type="number" min="0" max="20"></div>
         <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="autoStart" style="width:18px;height:18px"> Start the song automatically after the card (off = wait for Play here)</label>
         <label style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" id="cornerQR" style="width:18px;height:18px"> Small QR code in the corner of the display during songs, so people can browse and sign up</label>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 style="font-size:22px">Contest mode</h2>
+        <label style="display:flex;gap:10px;align-items:center;margin-top:8px"><input type="checkbox" id="contestOn" style="width:18px;height:18px"> Let guests vote on performances tonight</label>
+        <p class="m" style="margin:6px 0 0">Guests can rate a song once it's over, only during this event, and never their own. Standings stay in the DJ booth until you reveal the winners.</p>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 style="font-size:22px">Tips</h2>
@@ -285,10 +298,10 @@ function drawQR(){const u=joinURL();const q=qrcode(0,'M');q.addData(u);q.make();
 $('qrPrint').onclick=()=>window.print();
 
 /* ---- settings ---- */
-function fillSet(){const s=S.settings||{};$('coverSecs').value=s.coverSecs??6;$('autoStart').checked=s.autoStart!==false;$('cornerQR').checked=s.cornerQR!==false;$('extra').value=(s.extra||[]).join('\n');$('newPin').value='';$('tipUrl').value=s.tipUrl||'';
+function fillSet(){const s=S.settings||{};$('coverSecs').value=s.coverSecs??6;$('autoStart').checked=s.autoStart!==false;$('cornerQR').checked=s.cornerQR!==false;$('extra').value=(s.extra||[]).join('\n');$('newPin').value='';$('tipUrl').value=s.tipUrl||'';$('contestOn').checked=!!s.contest;
   $('backendInfo').textContent=EV.isDemo?'Backend: demo (this browser only). Set REEF_WORKER_URL in event-config.js once the Cloudflare Worker is deployed.':'Backend: Cloudflare Worker '+(window.REEF_WORKER_URL||'')}
 $('saveSet').onclick=async()=>{const p=$('newPin').value.trim();if(p&&!/^\d{4,8}$/.test(p)){toast('PIN must be 4 to 8 digits',true);return}
-  const r=await act('settings',{settings:{coverSecs:$('coverSecs').value,autoStart:$('autoStart').checked,cornerQR:$('cornerQR').checked,extra:$('extra').value.split('\n'),tipUrl:$('tipUrl').value.trim(),pin:p||undefined}});
+  const r=await act('settings',{settings:{coverSecs:$('coverSecs').value,autoStart:$('autoStart').checked,cornerQR:$('cornerQR').checked,contest:$('contestOn').checked,extra:$('extra').value.split('\n'),tipUrl:$('tipUrl').value.trim(),pin:p||undefined}});
   if($('tipUrl').value.trim()&&!/^https:\/\//.test($('tipUrl').value.trim())){toast('Tip link must start with https://',true)}
   if(r.ok){if(p){EV.pin=p;try{sessionStorage.setItem('reefev:pin',p)}catch(e){}}toast('Saved')}};
 $('reset').onclick=()=>{if(confirm('Clear tonight’s line and what’s on stage? Requests and remixes stay.'))act('reset')};
@@ -299,8 +312,18 @@ $('seed').onclick=async()=>{const names=['Maya','Theo','Grandpa Ray','Juniper','
   sObj.requests.push({id:'r1'+Date.now(),type:'library',k:CAT[3].k,title:CAT[3].title,theme:'make it about sea otters',name:'Lila',ts:Date.now()},{id:'r2'+Date.now(),type:'new',title:'Baby Shark',artist:'Pinkfong',theme:'',name:'Ezra',ts:Date.now()});
   if(EV.isDemo)EV.backend.save(sObj);toast('Demo guests added')};
 
+function renderContestAdmin(){const C=S.contest||{},on=!!(S.settings||{}).contest;$('contestSec').hidden=!on;
+  const b=C.admin||[];$('voteCnt').textContent=C.votes||0;const medal=['🥇','🥈','🥉'];
+  $('contestList').innerHTML=b.length?b.slice(0,10).map((r,i)=>`<div class="item"><span style="font-size:22px;width:30px;text-align:center">${medal[i]||i+1}</span><div class="grow"><div class="t">${esc(r.name)}</div><div class="s">${esc(r.title)}</div></div><span class="pill ok">${r.avg.toFixed(2)} 🐚</span><span class="pill">${r.n} vote${r.n===1?'':'s'}</span></div>`).join(''):'<p class="empty">No votes yet. Voting opens for each song when it ends.</p>';
+  $('revealB').textContent=C.show?'Hide winners again':'Reveal winners to everyone';$('revealB').disabled=!b.length&&!C.show;
+  const g=S.game||[];$('gameCnt').textContent=g.length;
+  $('gameList').innerHTML=g.length?g.slice(0,5).map((r,i)=>`<div class="item"><span style="width:30px;text-align:center;font-weight:700">${i+1}</span><div class="grow"><div class="t">${esc(r.name)}</div></div><span class="pill ok">${r.score}</span></div>`).join('')+'<div style="margin-top:6px"><button class="btn ghost small" id="gameClearB" type="button">Clear the high scores</button></div>':'<p class="empty">Nobody has played yet. Guests get the game while they wait in line.</p>';
+  const gc=$('gameClearB');if(gc)gc.onclick=async()=>{if(!confirmTwice(gc,'Tap again to clear'))return;await act('clearGame');toast('High scores cleared')}}
+function confirmTwice(b,label){if(b.dataset.arm&&Date.now()-b.dataset.arm<4000)return true;b.dataset.arm=Date.now();b.textContent=label;return false}
+$('revealB').onclick=async()=>{const r=await act('contestReveal',{on:!(S.contest||{}).show});if(r&&r.ok!==false)toast((S.contest||{}).show?'Winners hidden':'Winners are on every phone 🏆')};
+$('voteClearB').onclick=async()=>{if(!confirmTwice($('voteClearB'),'Tap again to clear votes'))return;await act('contestClear');$('voteClearB').textContent='Clear votes';delete $('voteClearB').dataset.arm;toast('Votes cleared')};
 function start(){EV.on(s=>{S=s;$('conn').textContent=EV.isDemo?'Demo backend':(EV.backend.online?'Live':'Reconnecting…');$('conn').classList.toggle('on',!EV.isDemo&&EV.backend.online);
-  fillSongSelects();renderLive();renderReq();renderRemixes()});
+  fillSongSelects();renderLive();renderReq();renderRemixes();renderContestAdmin()});
   if(!EV.isDemo){$('rxGen').disabled=false;$('rxGenNote').textContent='Generates on the server with your API key, then shows here for approval.'}}
 $('rxGen').onclick=async()=>{const b=rxBase();if(!b){toast('Pick a song first',true);return}$('rxGen').disabled=true;$('rxGen').textContent='Writing…';
   const r=await EV.call('parody',{base:b.k,theme:$('rxTheme').value.trim(),prompt:buildPrompt(b,$('rxTheme').value.trim()),count:b.lines.length});
