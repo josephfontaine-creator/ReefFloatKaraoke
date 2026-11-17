@@ -58,7 +58,13 @@ const ACTIONS={
     const n=Math.round(+a.stars);if(!(n>=1&&n<=5))return{ok:false};if(!rate(s,'vote',80,3600e3))return{ok:false};
     s.votes=s.votes||{};const v=s.votes[q.id]||(s.votes[q.id]={name:q.name,title:q.title,av:q.av||null,at:q.doneAt||now(),v:{}});v.v[d]=n;return{ok:true}},
   contestReveal(s,a){if(!adminOk(s,a))return{ok:false};s.contestShow=!!a.on;return{ok:true}},
-  contestClear(s,a){if(!adminOk(s,a))return{ok:false};s.votes={};s.contestShow=false;return{ok:true}},
+  contestClear(s,a){if(!adminOk(s,a))return{ok:false};s.votes={};s.contestShow=false;s.queue=s.queue.filter(q=>!q.sample);return{ok:true}},
+  /* rehearsal: turns the contest on, starts a show if one is not running, and adds finished sample singers with votes so the host can see every screen */
+  contestSample(s,a){if(!adminOk(s,a))return{ok:false};s.settings.contest=true;if(s.mode!=='event'||!s.eventId){s.mode='event';s.eventId=uid();s.nixed={};s.thanks=[];s.votes={};s.contestShow=false}
+    s.queue=s.queue.filter(q=>!q.sample);for(const id in s.votes||{})if(s.votes[id].sample)delete s.votes[id];
+    const names=['Sample: Maya','Sample: Theo','Sample: Grandpa Ray','Sample: The Kelp Twins'],songs=(a.songs||[]).slice(0,4),spread=[[5,5,4,5,4,5],[4,3,4,5,3],[5,4,4],[3]];
+    names.forEach((name,i)=>{const c=songs[i]||{},id=uid(),t=now()-(names.length-i)*240e3;s.queue.push({id,k:trim(c.k||'sample',80),title:trim(c.title||'Sample song',80),name,ts:t-200e3,status:'done',doneAt:t,dev:'sample',ev:s.eventId,sample:true});
+      s.votes[id]={name,title:trim(c.title||'Sample song',80),av:null,at:t,sample:true,v:Object.fromEntries(spread[i].map((n,j)=>['sample'+j,n]))}});return{ok:true}},
   clearGame(s,a){if(!adminOk(s,a))return{ok:false};s.game=[];return{ok:true}},
   /* admin */
   login(s,a){return adminOk(s,a)?{ok:true}:{ok:false,msg:'Wrong PIN.'}},
@@ -100,10 +106,12 @@ const ACTIONS={
 /* contest standings: average shells, ties broken by number of votes. Needs 2 votes to place (1 in a tiny room). */
 function standings(s){const all=Object.entries(s.votes||{}).map(([id,r])=>{const xs=Object.values(r.v||{});const n=xs.length;return{id,name:r.name,title:r.title,av:r.av||null,n,avg:n?Math.round(xs.reduce((p,c)=>p+c,0)/n*100)/100:0}}).filter(r=>r.n>0);
   const min=all.some(r=>r.n>=2)?2:1;return all.filter(r=>r.n>=min).sort((x,y)=>y.avg-x.avg||y.n-x.n)}
+/* host view: every performance with at least one vote, including ones that do not place yet */
+function tally(s){return Object.entries(s.votes||{}).map(([id,r])=>{const xs=Object.values(r.v||{}),n=xs.length;return{id,n,avg:n?Math.round(xs.reduce((p,c)=>p+c,0)/n*100)/100:0}})}
 /* what a guest's phone may know: scores without device ids, and winners only after the DJ reveals them */
 function publicExtras(s,dev){return{game:(s.game||[]).slice(0,10).map(g=>({name:g.name,score:g.score,mine:dev?g.dev===dev:false})),
   contest:{on:!!(s.settings&&s.settings.contest),show:!!s.contestShow,votes:Object.values(s.votes||{}).reduce((p,r)=>p+Object.keys(r.v||{}).length,0),board:s.contestShow?standings(s).slice(0,10):null}}}
 function ahead(s,id){const live=s.queue.filter(q=>['up','approved'].includes(q.status));const i=live.findIndex(q=>q.id===id);return i<0?-1:i}
-return {BLANK,ACTIONS,advance,ahead,repeatGap,REPEAT_GAP,standings,publicExtras};
+return {BLANK,ACTIONS,advance,ahead,repeatGap,REPEAT_GAP,standings,tally,publicExtras};
 }
 if(typeof module!=='undefined'&&module.exports)module.exports=reefActions;

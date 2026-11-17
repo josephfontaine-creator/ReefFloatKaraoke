@@ -12,7 +12,7 @@ const uid=()=>Math.random().toString(36).slice(2,9)+now().toString(36).slice(-4)
 const device=(()=>{try{let d=localStorage.getItem(DEV);if(!d){d=uid();localStorage.setItem(DEV,d)}return d}catch(e){return 'anon'}})();
 const clean=t=>!window.ReefFilter||window.ReefFilter.clean(t);
 const trim=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
-const {BLANK,ACTIONS,standings,publicExtras}=reefActions({now,uid,clean,trim,device:()=>device});
+const {BLANK,ACTIONS,standings,tally,publicExtras}=reefActions({now,uid,clean,trim,device:()=>device});
 
 /* ---------- demo backend: localStorage + BroadcastChannel ---------- */
 function makeDemo(){
@@ -49,7 +49,7 @@ function makeRemote(){
 
 const backend=WORKER?makeRemote():makeDemo();
 const EV={room:ROOM,backend,device,state:backend.load(),pin:'',
-  on(f){return backend.subscribe(s=>{if(backend.kind==='demo'){const raw=s;s=Object.assign({},raw,publicExtras(raw,device));s.contest.admin=standings(raw);s.myVotes=Object.fromEntries(Object.entries(raw.votes||{}).filter(([,r])=>r.v&&r.v[device]).map(([id,r])=>[id,r.v[device]]))}EV.state=s;if(window.ReefFilter)window.ReefFilter.setExtra((s.settings||{}).extra||[]);f(s)})},
+  on(f){return backend.subscribe(s=>{if(backend.kind==='demo'){const raw=s;s=Object.assign({},raw,publicExtras(raw,device));s.contest.admin=standings(raw);s.contest.tally=tally(raw);s.myVotes=Object.fromEntries(Object.entries(raw.votes||{}).filter(([,r])=>r.v&&r.v[device]).map(([id,r])=>[id,r.v[device]]))}EV.state=s;if(window.ReefFilter)window.ReefFilter.setExtra((s.settings||{}).extra||[]);f(s)})},
   call(action,args){return backend.call(action,Object.assign({pin:EV.pin},args||{}))},
   reconnect(){if(backend.reconnect)backend.reconnect()},
   isDemo:backend.kind==='demo'};

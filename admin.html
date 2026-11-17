@@ -86,11 +86,14 @@ table.pv tr.bad td{background:rgba(255,123,94,.12)}
       <h2 class="sec">The line <span class="cnt" id="lineCnt">0</span></h2>
       <div class="list" id="lineList"></div>
       <div class="add"><select class="in" id="addSong" aria-label="Song to add"></select><input class="in" id="addName" maxlength="20" placeholder="Singer name" aria-label="Singer name"><button class="btn" id="addGo" type="button">Add to the line</button></div>
-      <div id="contestSec" hidden>
-        <h2 class="sec">Contest <span class="cnt" id="voteCnt">0</span></h2>
-        <p class="m" style="margin:0 0 8px">Guests rate each finished song with 1 to 5 shells. Only you see the standings until you reveal them.</p>
-        <div class="list" id="contestList"></div>
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" id="revealB" type="button">Reveal winners to everyone</button><button class="btn ghost small" id="voteClearB" type="button">Clear votes</button></div>
+      <div id="contestSec">
+        <h2 class="sec" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Contest <span class="cnt" id="voteCnt">0</span><button class="btn small" id="contestTog" type="button" aria-pressed="false" style="margin-left:auto">Turn on</button></h2>
+        <p class="m" id="contestStatus" style="margin:0 0 8px"></p>
+        <div id="contestBody">
+          <div class="list" id="contestList"></div>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" id="revealB" type="button">Reveal winners to everyone</button><a class="btn" id="guestViewB" target="_blank" rel="noopener">See what guests see</a><button class="btn ghost small" id="voteClearB" type="button">Clear votes</button></div>
+        </div>
+        <div style="margin-top:8px"><button class="btn ghost small" id="sampleB" type="button">Rehearse with sample singers and votes</button></div>
       </div>
       <h2 class="sec">Jelly Drift high scores <span class="cnt" id="gameCnt">0</span></h2>
       <div class="list" id="gameList"></div>
@@ -312,15 +315,26 @@ $('seed').onclick=async()=>{const names=['Maya','Theo','Grandpa Ray','Juniper','
   sObj.requests.push({id:'r1'+Date.now(),type:'library',k:CAT[3].k,title:CAT[3].title,theme:'make it about sea otters',name:'Lila',ts:Date.now()},{id:'r2'+Date.now(),type:'new',title:'Baby Shark',artist:'Pinkfong',theme:'',name:'Ezra',ts:Date.now()});
   if(EV.isDemo)EV.backend.save(sObj);toast('Demo guests added')};
 
-function renderContestAdmin(){const C=S.contest||{},on=!!(S.settings||{}).contest;$('contestSec').hidden=!on;
+function renderContestAdmin(){const C=S.contest||{},on=!!(S.settings||{}).contest,live=S.mode==='event';
   const b=C.admin||[];$('voteCnt').textContent=C.votes||0;const medal=['🥇','🥈','🥉'];
-  $('contestList').innerHTML=b.length?b.slice(0,10).map((r,i)=>`<div class="item"><span style="font-size:22px;width:30px;text-align:center">${medal[i]||i+1}</span><div class="grow"><div class="t">${esc(r.name)}</div><div class="s">${esc(r.title)}</div></div><span class="pill ok">${r.avg.toFixed(2)} 🐚</span><span class="pill">${r.n} vote${r.n===1?'':'s'}</span></div>`).join(''):'<p class="empty">No votes yet. Voting opens for each song when it ends.</p>';
+  const tg=$('contestTog');tg.textContent=on?'On':'Turn on';tg.setAttribute('aria-pressed',on);tg.classList.toggle('primary',on);$('contestBody').hidden=!on;$('guestViewB').href=joinURL();
+  const tl=Object.fromEntries((C.tally||[]).map(r=>[r.id,r])),rank=Object.fromEntries(b.map((r,i)=>[r.id,i]));
+  const done=(S.queue||[]).filter(q=>q.status==='done'&&(!q.ev||q.ev===S.eventId)).map(q=>Object.assign({n:0,avg:0},tl[q.id]||{},{id:q.id,name:q.name,title:q.title})).sort((x,y)=>(rank[x.id]??99)-(rank[y.id]??99)||y.n-x.n);
+  const hasSample=(S.queue||[]).some(q=>q.sample);
+  $('contestStatus').textContent=!on?'Off. Turn it on and guests can rate each finished song with 1 to 5 shells. Only you see the standings until you reveal them.'
+    :!live?'On, but voting only runs during a show. Switch to “Event on” above.'
+    :!done.length?'On. Voting opens on guests’ phones as each song ends. Nothing has finished yet.'
+    :`${C.votes||0} vote${(C.votes||0)===1?'':'s'} on ${done.filter(r=>r.n).length} of ${done.length} finished songs. ${C.show?'Winners are showing on every phone.':'Only you can see this until you reveal it.'}`
+    +(hasSample?' Sample singers are in the list; “Clear votes” removes them.':'')+(EV.isDemo?' Practice mode: votes stay on this device until the live backend is set up.':'');
+  $('contestList').innerHTML=done.length?done.slice(0,20).map(r=>{const i=rank[r.id];return`<div class="item"><span style="font-size:22px;width:30px;text-align:center">${i==null?'·':medal[i]||i+1}</span><div class="grow"><div class="t">${esc(r.name)}</div><div class="s">${esc(r.title)}</div></div>${r.n?`<span class="pill ok">${r.avg.toFixed(2)} 🐚</span>`:''}<span class="pill">${r.n?r.n+' vote'+(r.n===1?'':'s'):'no votes yet'}</span></div>`}).join(''):'';
   $('revealB').textContent=C.show?'Hide winners again':'Reveal winners to everyone';$('revealB').disabled=!b.length&&!C.show;
   const g=S.game||[];$('gameCnt').textContent=g.length;
   $('gameList').innerHTML=g.length?g.slice(0,5).map((r,i)=>`<div class="item"><span style="width:30px;text-align:center;font-weight:700">${i+1}</span><div class="grow"><div class="t">${esc(r.name)}</div></div><span class="pill ok">${r.score}</span></div>`).join('')+'<div style="margin-top:6px"><button class="btn ghost small" id="gameClearB" type="button">Clear the high scores</button></div>':'<p class="empty">Nobody has played yet. Guests get the game while they wait in line.</p>';
   const gc=$('gameClearB');if(gc)gc.onclick=async()=>{if(!confirmTwice(gc,'Tap again to clear'))return;await act('clearGame');toast('High scores cleared')}}
 function confirmTwice(b,label){if(b.dataset.arm&&Date.now()-b.dataset.arm<4000)return true;b.dataset.arm=Date.now();b.textContent=label;return false}
 $('revealB').onclick=async()=>{const r=await act('contestReveal',{on:!(S.contest||{}).show});if(r&&r.ok!==false)toast((S.contest||{}).show?'Winners hidden':'Winners are on every phone 🏆')};
+$('contestTog').onclick=async()=>{const on=!(S.settings||{}).contest;const r=await act('settings',{settings:{contest:on}});if(r&&r.ok!==false)toast(on?'Contest is on':'Contest is off')};
+$('sampleB').onclick=async()=>{const r=await act('contestSample',{songs:CAT.filter(c=>!c.straight).sort(()=>Math.random()-.5).slice(0,4).map(c=>({k:c.k,title:c.title}))});if(r&&r.ok!==false)toast('Sample singers added. Open the guest view to vote.')};
 $('voteClearB').onclick=async()=>{if(!confirmTwice($('voteClearB'),'Tap again to clear votes'))return;await act('contestClear');$('voteClearB').textContent='Clear votes';delete $('voteClearB').dataset.arm;toast('Votes cleared')};
 function start(){EV.on(s=>{S=s;$('conn').textContent=EV.isDemo?'Demo backend':(EV.backend.online?'Live':'Reconnecting…');$('conn').classList.toggle('on',!EV.isDemo&&EV.backend.online);
   fillSongSelects();renderLive();renderReq();renderRemixes();renderContestAdmin()});
